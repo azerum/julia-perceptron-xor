@@ -1,6 +1,7 @@
 using Parameters
 using LinearAlgebra
 using JSON
+using Serialization
 
 import Parameters.with_kw
 include("modify.jl")
@@ -92,9 +93,7 @@ function sigmoid_prime_from_sigmoid(x)
     x * (1 - x)
 end
 
-function test_and_save(weights::Weights, dataset)
-    println("Rate: $rate. Iterations: $iterations")
-
+function test(weights::Weights, dataset)
     cost = 0
 
     for (x, y) in dataset
@@ -107,19 +106,36 @@ function test_and_save(weights::Weights, dataset)
     cost /= length(dataset)
     
     println("Cost: $cost")
+end
 
-    max_cost = 1/4 * 4 * (0.5)^2
+function train_and_test_and_save(dataset)
+    weights = fill_weights(dims -> randn(Float32, dims...))
 
-    if cost >= max_cost
-        return
+    iterations = 100
+    rate = 10
+    
+    learn!(weights, dataset, iterations, rate)
+
+    println("Rate: $rate. Iterations: $iterations")
+    test(weights, dataset)
+
+    open("weights.bin", "w") do f
+        serialize(f, weights)
     end
 
-    open("weights.json", "w") do f
+    open("readable-weights.json", "w") do f
         JSON.print(f, weights)
     end
 end
 
-weights = fill_weights(dims -> randn(Float32, dims...))
+function load_and_test(dataset)
+    weights::Weights = deserialize("weights.bin")
+
+    print(compute_output(weights, [1, 0]))
+    print(compute_output(weights, [0, 1]))
+
+    # test(weights, dataset)
+end
 
 dataset = [
     (x=[0, 0], y = 0),
@@ -128,8 +144,5 @@ dataset = [
     (x=[1, 1], y = 0)
 ]
 
-iterations = 100
-rate = 10
-
-learn!(weights, dataset, iterations, rate)
-test_and_save(weights, dataset)
+#train_and_test_and_save(dataset)
+load_and_test(dataset)
